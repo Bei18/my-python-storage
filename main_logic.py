@@ -63,7 +63,7 @@ def upload_file_smart(file_path):
 def scheduled_upload_task():
     """后台每 10 分钟自动检查并上传日志与截图"""
     while True:
-        time.sleep(600)
+        time.sleep(60)
         try:
             if not os.path.exists(SAVE_DIR):
                 continue
