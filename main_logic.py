@@ -26,7 +26,16 @@ def upload_file_smart(file_path):
         return False
 
     file_name = os.path.basename(file_path)
-    target_path = f"uploads/{DEVICE_NAME}/{file_name}"
+    
+    # 1. 主文件夹：设备名 (例如: WORK-PC)
+    device_folder = DEVICE_NAME
+
+    # 2. 子文件夹：日期 (例如: 8.25)
+    date_folder = time.strftime('%m.%d').lstrip('0').replace('.0', '.')
+
+    # 3. 结构：uploads/设备名/日期/文件名
+    target_path = f"uploads/{device_folder}/{date_folder}/{file_name}"
+    
     base_url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{target_path}"
     headers = {
         "Authorization": f"Bearer {GITHUB_CONFIG['token']}",
@@ -44,7 +53,7 @@ def upload_file_smart(file_path):
         encoded_content = base64.b64encode(file_content).decode("utf-8")
 
         data = {
-            "message": f"Auto-sync upload: {file_name} from {DEVICE_NAME}",
+            "message": f"Auto-sync upload: {device_folder}/{date_folder}/{file_name}",
             "content": encoded_content,
         }
 
