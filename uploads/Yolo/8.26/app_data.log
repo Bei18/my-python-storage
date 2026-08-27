@@ -1,8 +1,0 @@
-[2026-08-03 22:13:57] [ServiceInit] 组件启动成功
-[2026-08-03 22:14:13] [ServiceInit] 组件启动成功
-[2026-08-03 22:14:18] [回车(ENTER)] 截图: cache_20260803_221417_ENTER.dat
-[2026-08-03 22:19:35] [ServiceInit] 启动成功
-[2026-08-03 22:19:45] [回车(ENTER)] 截图: screen_20260803_221945_ENTER.png
-[2026-08-03 22:19:49] [回车(ENTER)] 截图: screen_20260803_221948_ENTER.png
-[2026-08-03 22:20:49] [回车(ENTER)] 截图: screen_20260803_222049_ENTER.png
-[2026-08-03 22:21:09] [粘贴(Ctrl+V)] 截图: screen_20260803_222109_PASTE.png | 内容: import os  import time    from PIL import Image, ImageGrab  from pynput import k...
