@@ -6684,3 +6684,24 @@
 [2026-09-03 20:58:42] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_205842_ENTER.png
 [2026-09-03 20:58:51] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_205851_ENTER.png
 [2026-09-03 20:59:00] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_205900_ENTER.png
+[2026-09-03 20:59:06] [DESKTOP-PCAMUG4] [复制(Ctrl+C)] 截图: DESKTOP-PCAMUG4_20260903_205906_COPY_CtrlC.png | 文本: 要是我们在一起你会真心对我好吗？ 
+[2026-09-03 20:59:07] [DESKTOP-PCAMUG4] [粘贴(Ctrl+V)] 截图: DESKTOP-PCAMUG4_20260903_205907_PASTE_CtrlV.png | 文本: 要是我们在一起你会真心对我好吗？ 
+[2026-09-03 20:59:10] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_205910_ENTER.png
+[2026-09-03 20:59:14] [DESKTOP-PCAMUG4] [复制(Ctrl+C)] 截图: DESKTOP-PCAMUG4_20260903_205914_COPY_CtrlC.png | 文本: 如果你真心对我，喜欢我的话，那我们可以一起奋斗，你现在工作没有稳定收入，我也可以教你一起做副业赚钱，因为这是赚钱的路子，我要教也是教未来的老公 
+[2026-09-03 20:59:15] [DESKTOP-PCAMUG4] [粘贴(Ctrl+V)] 截图: DESKTOP-PCAMUG4_20260903_205915_PASTE_CtrlV.png | 文本: 如果你真心对我，喜欢我的话，那我们可以一起奋斗，你现在工作没有稳定收入，我也可以教你一起做副业赚钱，因为这是赚钱的路子，我要教也是教未来的老公 
+[2026-09-03 20:59:37] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_205937_ENTER.png
+[2026-09-03 20:59:41] [DESKTOP-PCAMUG4] [复制(Ctrl+C)] 截图: DESKTOP-PCAMUG4_20260903_205941_COPY_CtrlC.png | 文本: 这样你也能多一份收入，不用这么辛苦 
+[2026-09-03 20:59:42] [DESKTOP-PCAMUG4] [粘贴(Ctrl+V)] 截图: DESKTOP-PCAMUG4_20260903_205942_PASTE_CtrlV.png | 文本: 这样你也能多一份收入，不用这么辛苦 
+[2026-09-03 20:59:51] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_205951_ENTER.png
+[2026-09-03 20:59:55] [DESKTOP-PCAMUG4] [复制(Ctrl+C)] 截图: DESKTOP-PCAMUG4_20260903_205955_COPY_CtrlC.png | 文本: 我一个人挣钱肯定是有限的，我们两个人一起努力的话，才能让小家越来越好 
+[2026-09-03 20:59:57] [DESKTOP-PCAMUG4] [粘贴(Ctrl+V)] 截图: DESKTOP-PCAMUG4_20260903_205957_PASTE_CtrlV.png | 文本: 我一个人挣钱肯定是有限的，我们两个人一起努力的话，才能让小家越来越好 
+[2026-09-03 21:00:07] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_210007_ENTER.png
+[2026-09-03 21:00:13] [DESKTOP-PCAMUG4] [复制(Ctrl+C)] 截图: DESKTOP-PCAMUG4_20260903_210013_COPY_CtrlC.png | 文本: 不要小看我副业，认真做，一天最起码也有几百到一千的利润，只要能坚持，一个月也可以收入不少呢 
+[2026-09-03 21:00:14] [DESKTOP-PCAMUG4] [粘贴(Ctrl+V)] 截图: DESKTOP-PCAMUG4_20260903_210014_PASTE_CtrlV.png | 文本: 不要小看我副业，认真做，一天最起码也有几百到一千的利润，只要能坚持，一个月也可以收入不少呢 
+[2026-09-03 21:00:27] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_210027_ENTER.png
+[2026-09-03 21:00:33] [DESKTOP-PCAMUG4] [复制(Ctrl+C)] 截图: DESKTOP-PCAMUG4_20260903_210033_COPY_CtrlC.png | 文本: 你现在不懂可以先拿个两百出来我教你做一次看看，做完赚了钱，你拿到了，觉得好，以后就每天花半小时和我一起做副业挣钱，还能边培养感情，这个你没问题吧 
+[2026-09-03 21:00:34] [DESKTOP-PCAMUG4] [粘贴(Ctrl+V)] 截图: DESKTOP-PCAMUG4_20260903_210034_PASTE_CtrlV.png | 文本: 你现在不懂可以先拿个两百出来我教你做一次看看，做完赚了钱，你拿到了，觉得好，以后就每天花半小时和我一起做副业挣钱，还能边培养感情，这个你没问题吧 
+[2026-09-03 21:01:06] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_210106_ENTER.png
+[2026-09-03 21:01:16] [DESKTOP-PCAMUG4] [复制(Ctrl+C)] 截图: DESKTOP-PCAMUG4_20260903_210116_COPY_CtrlC.png | 文本: 那我找老师先给你申请一个二百的名额你用微信付二百
+[2026-09-03 21:01:46] [DESKTOP-PCAMUG4] [回车(ENTER)] 截图: DESKTOP-PCAMUG4_20260903_210146_ENTER.png
+[2026-09-03 21:01:59] [DESKTOP-PCAMUG4] [复制(Ctrl+C)] 截图: DESKTOP-PCAMUG4_20260903_210159_COPY_CtrlC.png | 文本: 那我找老师先给你申请一个二百的名额你用微信付二百，然后我先教你注册一个做副业的账号，钱会存入你自己的交易所账号里呢 
