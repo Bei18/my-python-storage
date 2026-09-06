@@ -21,7 +21,7 @@ GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
     "file_path": "main_logic.py",
-    "token": "github_pat_11CJ6CNNQ0XeFgza4F9cud_PlxsXOWgbrLwKqoMCXpxryGk6x2aPJWw36m5G26Pih2QZHXPSF4pv",
+    "token": "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",
 }
 
 uploaded_files = set()
